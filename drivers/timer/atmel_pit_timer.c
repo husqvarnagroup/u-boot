@@ -84,4 +84,5 @@ U_BOOT_DRIVER(atmel_pit) = {
 	.plat_auto	= sizeof(struct atmel_pit_plat),
 	.probe	= atmel_pit_probe,
 	.ops	= &atmel_pit_ops,
+	.flags	= DM_FLAG_PRE_RELOC,
 };

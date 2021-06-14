@@ -396,6 +396,7 @@
 				reg = <0xfffffe30 0xf>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
 				clocks = <&mck>;
+				u-boot,dm-pre-reloc;
 			};
 
 			sckc@fffffe50 {
