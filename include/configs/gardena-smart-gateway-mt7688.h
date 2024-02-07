@@ -32,4 +32,6 @@
 
 /* Environment settings */
 
+#define CONFIG_SYS_BOOTM_LEN	0x900000
+
 #endif /* __CONFIG_GARDENA_SMART_GATEWAY_H */
