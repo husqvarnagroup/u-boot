@@ -392,6 +392,10 @@ static int bootm_load_os(bootm_headers_t *images, int boot_progress)
 	err = image_decomp(os.comp, load, os.image_start, os.type,
 			   load_buf, image_buf, image_len,
 			   CONFIG_SYS_BOOTM_LEN, &load_end);
+
+	printf("DBG: size: %d\n", load_end - load);
+	printf("DBG: max:  %d\n", CONFIG_SYS_BOOTM_LEN);
+
 	if (err) {
 		err = handle_decomp_error(os.comp, load_end - load, err);
 		bootstage_error(BOOTSTAGE_ID_DECOMP_IMAGE);
