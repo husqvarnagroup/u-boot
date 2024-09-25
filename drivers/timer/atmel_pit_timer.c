@@ -38,6 +38,8 @@ static void notrace timer_early_init(void)
 	if ((tmp & AT91_PIT_VALUE) && (tmp & AT91_PIT_PITEN))
 		return;
 
+	printf("init\n");
+
 	writel(AT91_PIT_VALUE | AT91_PIT_PITEN, &regs->mode);
 }
 

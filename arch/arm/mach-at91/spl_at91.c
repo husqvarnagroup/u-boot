@@ -8,6 +8,7 @@
  *		      Bo Shen <voice.shen@atmel.com>
  */
 
+#include "linux/delay.h"
 #include <common.h>
 #include <hang.h>
 #include <init.h>
@@ -21,6 +22,8 @@
 #include <asm/arch/at91_wdt.h>
 #include <asm/arch/clk.h>
 #include <spl.h>
+#include <asm/arch/gpio.h>
+#include <asm/arch/at91_pio.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -120,6 +123,10 @@ void board_init_f(ulong dummy)
 	/* Initialize matrix */
 	matrix_init();
 
+	for (int i = 13; i < 22; i++) {
+		at91_set_pio_output(AT91_PIO_PORTC, i, 0);
+	}
+
 	gd->arch.mck_rate_hz = CFG_SYS_MASTER_CLOCK;
 	/*
 	 * init timer long enough for using in spl.
@@ -142,7 +149,14 @@ void board_init_f(ulong dummy)
 	preloader_console_init();
 #endif
 
-	mem_init();
-
 	at91_spl_board_init();
+
+	for (int i = 0; i < 100; i++) {
+		at91_set_pio_value(AT91_PIO_PORTC, 20, 1);
+		udelay(500000);
+		at91_set_pio_value(AT91_PIO_PORTC, 20, 0);
+		udelay(500000);
+	}
+
+	mem_init();
 }
