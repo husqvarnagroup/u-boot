@@ -8,6 +8,9 @@
 #include <dm.h>
 #include <timer.h>
 #include <asm/io.h>
+#if IS_ENABLED(CONFIG_TIMER_EARLY)
+#include <asm/arch/hardware.h>
+#endif
 #include <linux/bitops.h>
 
 #define AT91_PIT_VALUE		0xfffff
@@ -23,6 +26,39 @@ struct atmel_pit_regs {
 struct atmel_pit_plat {
 	struct atmel_pit_regs *regs;
 };
+
+#if IS_ENABLED(CONFIG_TIMER_EARLY)
+static void notrace timer_early_init(void)
+{
+	struct atmel_pit_regs *regs = (struct atmel_pit_regs *)ATMEL_BASE_PIT;
+	u32 tmp;
+
+	tmp = readl(&regs->mode);
+	if ((tmp & AT91_PIT_VALUE) && (tmp & AT91_PIT_PITEN))
+		return;
+
+	writel(AT91_PIT_VALUE | AT91_PIT_PITEN, &regs->mode);
+}
+
+unsigned long notrace timer_early_get_rate(void)
+{
+	timer_early_init();
+
+	return CFG_SYS_MASTER_CLOCK / 16;
+}
+
+u64 notrace timer_early_get_count(void)
+{
+	struct atmel_pit_regs *regs = (struct atmel_pit_regs *)ATMEL_BASE_PIT;
+	u32 val;
+
+	timer_early_init();
+
+	val = readl(&regs->value_image);
+
+	return timer_conv_64(val);
+}
+#endif
 
 static u64 atmel_pit_get_count(struct udevice *dev)
 {
@@ -83,4 +119,5 @@ U_BOOT_DRIVER(atmel_pit) = {
 	.plat_auto	= sizeof(struct atmel_pit_plat),
 	.probe	= atmel_pit_probe,
 	.ops	= &atmel_pit_ops,
+	.flags = DM_FLAG_PRE_RELOC,
 };
