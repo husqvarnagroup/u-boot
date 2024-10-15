@@ -5,6 +5,7 @@
 
 #include <common.h>
 #include <command.h>
+#include <dm/uclass.h>
 #include <env.h>
 #include <env_internal.h>
 #include <init.h>
@@ -89,7 +90,7 @@ static bool prepare_uuid_var(const char *fd_ptr, const char *env_var_name,
 static void factory_data_env_config(void)
 {
 	struct factory_data_values *fd;
-	struct spi_flash *sf;
+	struct udevice *dev;
 	int env_updated = 0;
 	char str[UUID_STR_LEN + 1];	/* Enough for UUID stuff */
 	char *env;
@@ -107,20 +108,16 @@ static void factory_data_env_config(void)
 	/*
 	 * Get values from factory-data area in SPI NOR
 	 */
-	sf = spi_flash_probe(CONFIG_SF_DEFAULT_BUS,
-			     CONFIG_SF_DEFAULT_CS,
-			     CONFIG_SF_DEFAULT_SPEED,
-			     CONFIG_SF_DEFAULT_MODE);
-	if (!sf) {
+	ret = uclass_first_device_err(UCLASS_SPI_FLASH, &dev);
+	if (ret) {
 		printf("F-Data:Unable to access SPI NOR flash\n");
 		goto err_free;
 	}
 
-	ret = spi_flash_read(sf, FACTORY_DATA_OFFS, FACTORY_DATA_SIZE,
-			     (void *)buf);
+	ret = spi_flash_read_dm(dev, FACTORY_DATA_OFFS, FACTORY_DATA_SIZE, buf);
 	if (ret) {
 		printf("F-Data:Unable to read factory-data from SPI NOR\n");
-		goto err_spi_flash;
+		goto err_free;
 	}
 
 	fd = (struct factory_data_values *)buf;
@@ -173,9 +170,6 @@ static void factory_data_env_config(void)
 		debug("F-Data:Values match current env values\n");
 	}
 
-err_spi_flash:
-	spi_flash_free(sf);
-
 err_free:
 	free(buf);
 }
@@ -209,7 +203,7 @@ static void copy_or_generate_uuid(char *fd_ptr, const char *env_var_name)
 int do_fd_write(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	struct factory_data_values *fd;
-	struct spi_flash *sf;
+	struct udevice *dev;
 	u8 *buf;
 	int ret = CMD_RET_FAILURE;
 
@@ -219,11 +213,8 @@ int do_fd_write(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 		return CMD_RET_FAILURE;
 	}
 
-	sf = spi_flash_probe(CONFIG_SF_DEFAULT_BUS,
-			     CONFIG_SF_DEFAULT_CS,
-			     CONFIG_SF_DEFAULT_SPEED,
-			     CONFIG_SF_DEFAULT_MODE);
-	if (!sf) {
+	ret = uclass_first_device_err(UCLASS_SPI_FLASH, &dev);
+	if (ret) {
 		printf("F-Data:Unable to access SPI NOR flash\n");
 		goto err_free;
 	}
@@ -231,11 +222,10 @@ int do_fd_write(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	/* Generate the factory-data struct */
 
 	/* Fist read complete sector into buffer */
-	ret = spi_flash_read(sf, FACTORY_DATA_OFFS, FACTORY_DATA_SECT_SIZE,
-			     (void *)buf);
+	ret = spi_flash_read_dm(dev, FACTORY_DATA_OFFS, FACTORY_DATA_SECT_SIZE, buf);
 	if (ret) {
 		printf("F-Data:spi_flash_read failed (%d)\n", ret);
-		goto err_spi_flash;
+		goto err_free;
 	}
 
 	fd = (struct factory_data_values *)buf;
@@ -272,23 +262,19 @@ int do_fd_write(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 
 	fd->crc = crc32(0, (u8 *)&fd->magic, FACTORY_DATA_CRC_LEN);
 
-	ret = spi_flash_erase(sf, FACTORY_DATA_OFFS, FACTORY_DATA_SECT_SIZE);
+	ret = spi_flash_erase_dm(dev, FACTORY_DATA_OFFS, FACTORY_DATA_SECT_SIZE);
 	if (ret) {
 		printf("F-Data:spi_flash_erase failed (%d)\n", ret);
-		goto err_spi_flash;
+		goto err_free;
 	}
 
-	ret = spi_flash_write(sf, FACTORY_DATA_OFFS, FACTORY_DATA_SECT_SIZE,
-			      buf);
+	ret = spi_flash_write_dm(dev, FACTORY_DATA_OFFS, FACTORY_DATA_SECT_SIZE, buf);
 	if (ret) {
 		printf("F-Data:spi_flash_write failed (%d)\n", ret);
-		goto err_spi_flash;
+		goto err_free;
 	}
 
 	printf("F-Data:factory-data values written to SPI NOR flash\n");
-
-err_spi_flash:
-	spi_flash_free(sf);
 
 err_free:
 	free(buf);
