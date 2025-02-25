@@ -308,6 +308,10 @@ int bootmeth_try_file(struct bootflow *bflow, struct blk_desc *desc,
 	if (!bflow->fname)
 		return log_msg_ret("name", -ENOMEM);
 
+	ret = bootmeth_setup_fs(bflow, desc);
+	if (ret)
+		return log_msg_ret("fs", ret);
+
 	if (IS_ENABLED(CONFIG_BOOTSTD_FULL) && bflow->fs_type)
 		fs_set_type(bflow->fs_type);
 
